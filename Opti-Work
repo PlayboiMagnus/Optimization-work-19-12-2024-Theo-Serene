@@ -1,0 +1,95 @@
+
+import pandas as pd
+from queue import PriorityQueue
+
+class Node: # Creating our class Node enables us to put the different weights and values that our project may have (Much like the xij that we saw with the Traveling Salesman problem)
+    def __init__(self, level, value, weight, bound, items):
+        self.level = level  
+        self.value = value 
+        self.weight = weight
+        self.bound = bound 
+        self.items = items 
+
+    def __lt__(self, other):
+        return self.bound > other.bound
+
+
+def bound(node, max_weight, revenues, weights):
+    if node.weight >= max_weight:
+        return 0
+
+    profit_bound = node.value  # We switch 
+    j = node.level + 1         # and increment the variables
+    total_weight = node.weight
+
+    while j < len(revenues) and total_weight + weights[j] <= max_weight:
+        total_weight += weights[j]
+        profit_bound += revenues[j]
+        j += 1
+
+    if j < len(revenues):
+        profit_bound += (max_weight - total_weight) * (revenues[j] / weights[j])
+
+    return profit_bound
+
+
+def branch_and_bound(revenues, weights, user_days):
+    n = len(revenues)
+    pq = PriorityQueue() # This enables the code to not have to arrange its list everytime it adds something to it. PriorityQueue lets us start by the lowest first every time
+
+    root = Node(-1, 0, 0, 0, []) # Start with everything reset to base value for our node root
+    root.bound = bound(root, user_days, revenues, weights)
+    pq.put(root)
+
+    max_profit = 0 # Start by resetting our variables
+    best_items = []
+
+    while not pq.empty():
+        current = pq.get()
+
+        if current.bound > max_profit:
+            for decision in [1, 0]:
+                next_level = current.level + 1
+                if next_level < n:
+                    new_value = current.value + revenues[next_level] * decision # Arranging all values to see which project fits our needs
+                    new_weight = current.weight + weights[next_level] * decision
+                    new_items = current.items + [decision]
+
+                    if new_weight <= user_days and new_value > max_profit:
+                        max_profit = new_value
+                        best_items = new_items
+
+                    next_bound = bound(Node(next_level, new_value, new_weight, 0, new_items), user_days, revenues, weights)
+                    if next_bound > max_profit:
+                        pq.put(Node(next_level, new_value, new_weight, next_bound, new_items))
+
+    return max_profit, best_items
+
+
+def main():
+    data = {
+        "Project": [1, 2, 3, 4, 5, 6],
+        "Revenue": [15, 20, 5, 25, 22, 17],
+        "Days": [51, 60, 35, 60, 53, 10]
+    }
+    df = pd.DataFrame(data) # Implementing our data
+    
+    user_days = int(input("Enter the total available researcher days: "))
+
+    revenues = df["Revenue"].values
+    weights = df["Days"].values
+
+    max_profit, best_items = branch_and_bound(revenues, weights, user_days)
+    
+    print("\nOptimal Selection Strategy:")
+    for i, decision in enumerate(best_items):
+        if decision == 1:
+            print(f"x{df['Project'][i]}: 1")
+        else:
+            print(f"x{df['Project'][i]}: 0")
+    
+    print(f"\nMaximum Profit: {max_profit}")
+
+
+if __name__ == "__main__":
+    main()
